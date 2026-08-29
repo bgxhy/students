@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>学生积分册</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="积分册">
+<meta name="theme-color" content="#2F5233">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --paper-2:#F1ECE0;
+    --paper-3:#E8E1D2;
+    --ink:#1F2A44;
+    --ink-soft:#5A6274;
+    --green:#2F5233;
+    --green-deep:#20391f;
+    --gold:#C89B3C;
+    --gold-soft:#EFDDB0;
+    --coral:#B5533C;
+    --coral-soft:#F0D8CE;
+    --line:#D8D2C4;
+    --white:#FFFFFF;
+    --font-display: Georgia, 'Songti SC', 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --radius: 16px;
+    --shadow: 0 2px 10px rgba(31,42,68,0.08), 0 1px 2px rgba(31,42,68,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+  }
+  button, input, textarea { font-family: inherit; }
+  button{ cursor:pointer; }
+  :focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- App shell ---------- */
+  #app{ min-height:100%; display:flex; flex-direction:column; }
+  .topbar{
+    background:var(--green);
+    color:var(--paper);
+    padding:14px 16px;
+    padding-top:max(14px, env(safe-area-inset-top));
+    display:flex;
+    align-items:center;
+    gap:10px;
+    position:sticky; top:0; z-index:20;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+  }
+  .topbar .back-btn{
+    background:transparent; border:none; color:var(--paper);
+    font-size:22px; line-height:1; padding:6px 8px; margin-left:-6px;
+    border-radius:10px;
+  }
+  .topbar .back-btn:active{ background:rgba(255,255,255,0.12); }
+  .topbar h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:0.3px;
+    margin:0; flex:1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .topbar .sub{
+    font-size:12px; color:var(--gold-soft); font-weight:400; display:block; margin-top:1px;
+    font-family:var(--font-body);
+  }
+  .icon-btn{
+    background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25);
+    color:var(--paper); border-radius:10px; padding:7px 10px; font-size:15px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .icon-btn:active{ background:rgba(255,255,255,0.22); }
+
+  main{ flex:1; padding:16px; padding-bottom:96px; max-width:980px; width:100%; margin:0 auto; }
+
+  .empty-state{
+    text-align:center; padding:56px 20px; color:var(--ink-soft);
+  }
+  .empty-state .glyph{ font-size:40px; margin-bottom:10px; opacity:0.5; }
+  .empty-state h3{ font-family:var(--font-display); color:var(--ink); margin:0 0 6px; }
+  .empty-state p{ margin:0 0 18px; font-size:14px; }
+
+  /* ---------- Grade cards ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+    gap:14px;
+  }
+  .grade-card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:0;
+    position:relative;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .grade-card .tab{
+    background:var(--green);
+    color:var(--paper);
+    padding:10px 14px;
+    font-family:var(--font-display);
+    font-size:16px;
+    font-weight:700;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .grade-card .tab .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .grade-card .body{ padding:14px; flex:1; display:flex; flex-direction:column; gap:10px; }
+  .grade-card .count{ color:var(--ink-soft); font-size:13px; }
+  .grade-card .open-btn{
+    margin-top:auto;
+    background:var(--paper-2); border:1px solid var(--line); color:var(--ink);
+    border-radius:10px; padding:9px 12px; font-size:14px; font-weight:600;
+    text-align:center;
+  }
+  .grade-card .open-btn:active{ background:var(--paper-3); }
+  .kebab{
+    background:rgba(255,255,255,0.15); border:none; color:var(--paper);
+    width:30px; height:30px; border-radius:8px; font-size:18px; flex-shrink:0;
+  }
+  .kebab:active{ background:rgba(255,255,255,0.3); }
+
+  .menu-pop{
+    position:absolute; z-index:30; background:var(--white); border:1px solid var(--line);
+    border-radius:12px; box-shadow:var(--shadow); overflow:hidden; min-width:160px;
+  }
+  .menu-pop button{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    padding:11px 14px; font-size:14px; color:var(--ink); border-bottom:1px solid var(--line);
+  }
+  .menu-pop button:last-child{ border-bottom:none; }
+  .menu-pop button:active{ background:var(--paper-2); }
+  .menu-pop button.danger{ color:var(--coral); }
+
+  .fab-row{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .btn{
+    border-radius:12px; padding:11px 16px; font-size:14px; font-weight:600; border:1px solid transparent;
+  }
+  .btn-primary{ background:var(--green); color:var(--paper); }
+  .btn-primary:active{ background:var(--green-deep); }
+  .btn-ghost{ background:var(--white); color:var(--ink); border-color:var(--line); }
+  .btn-ghost:active{ background:var(--paper-2); }
+  .btn-gold{ background:var(--gold); color:var(--green-deep); }
+  .btn-gold:active{ filter:brightness(0.95); }
+  .btn-coral{ background:var(--coral); color:var(--white); }
+  .btn-coral:active{ filter:brightness(0.95); }
+  .btn[disabled]{ opacity:0.4; }
+  .btn-sm{ padding:7px 11px; font-size:13px; border-radius:9px; }
+  .btn-block{ width:100%; }
+
+  /* ---------- Stamp badge (signature element) ---------- */
+  .stamp{
+    position:relative; width:64px; height:64px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--paper-2); flex-shrink:0;
+    border:2px solid var(--line);
+  }
+  .stamp img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+  .stamp .initial{ font-family:var(--font-display); font-size:24px; color:var(--ink-soft); }
+  .stamp.big{ width:96px; height:96px; }
+  .stamp.big .initial{ font-size:36px; }
+  .stamp::after{
+    content:''; position:absolute; inset:-4px; border-radius:50%;
+    border:2px dashed var(--line); pointer-events:none;
+  }
+  .stamp.pos::after{ border-color:var(--gold); }
+  .stamp.neg::after{ border-color:var(--coral); }
+  .score-seal{
+    position:absolute; bottom:-8px; right:-8px;
+    min-width:30px; height:24px; padding:0 6px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:12px; font-weight:700;
+    color:var(--white); background:var(--ink-soft);
+    border:2px solid var(--paper);
+  }
+  .score-seal.pos{ background:var(--gold); color:var(--green-deep); }
+  .score-seal.neg{ background:var(--coral); }
+  .stamp.big .score-seal{ font-size:14px; min-width:38px; height:28px; bottom:-6px; right:-10px; }
+
+  @keyframes bump{ 0%{transform:scale(1);} 40%{transform:scale(1.18);} 100%{transform:scale(1);} }
+  .bump{ animation:bump 320ms ease; }
+
+  /* ---------- Student cards ---------- */
+  .student-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(148px,1fr));
+    gap:12px;
+  }
+  .student-card{
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 10px 12px; text-align:center; position:relative; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .student-card .name-btn{
+    background:none; border:none; color:var(--ink); font-size:14px; font-weight:600;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 0;
+  }
+  .student-card .quick-btn{
+    position:absolute; top:8px; right:8px; background:var(--paper-2); border:1px solid var(--line);
+    width:26px; height:26px; border-radius:8px; font-size:14px; color:var(--ink-soft);
+  }
+  .student-card .quick-btn:active{ background:var(--paper-3); }
+  .student-card .check{
+    position:absolute; top:8px; left:8px; width:24px; height:24px; border-radius:7px;
+    border:2px solid var(--line); background:var(--white);
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--white);
+  }
+  .student-card.selected{ outline:2px solid var(--gold); background:var(--gold-soft); }
+  .student-card.selected .check{ background:var(--gold); border-color:var(--gold); color:var(--green-deep); font-weight:700; }
+  .student-card.selectable .name-btn{ pointer-events:none; }
+
+  /* ---------- Selection bottom bar ---------- */
+  .batch-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:25;
+    background:var(--green); color:var(--paper);
+    padding:10px 16px; padding-bottom:max(10px, env(safe-area-inset-bottom));
+    display:flex; align-items:center; gap:10px; box-shadow:0 -4px 14px rgba(0,0,0,0.18);
+    transform:translateY(0); transition:transform 200ms ease;
+  }
+  .batch-bar .count{ font-size:13px; flex:1; }
+  .batch-bar .count b{ color:var(--gold-soft); font-family:var(--font-mono); }
+
+  /* ---------- Ledger (records) ---------- */
+  .ledger{ display:flex; flex-direction:column; gap:0; border-top:1px solid var(--line); }
+  .ledger-row{
+    display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid var(--line);
+  }
+  .ledger-row .when{ font-size:12px; color:var(--ink-soft); width:84px; flex-shrink:0; line-height:1.4; font-family:var(--font-mono); }
+  .ledger-row .reason{ flex:1; font-size:14px; color:var(--ink); }
+  .ledger-row .delta{
+    font-family:var(--font-mono); font-weight:700; font-size:14px; min-width:52px; text-align:right;
+    padding:4px 8px; border-radius:10px;
+  }
+  .ledger-row .delta.pos{ color:var(--green-deep); background:var(--gold-soft); }
+  .ledger-row .delta.neg{ color:var(--coral); background:var(--coral-soft); }
+  .ledger-row .del-btn{
+    background:none; border:none; color:var(--ink-soft); font-size:16px; padding:4px 6px; opacity:0.6;
+  }
+
+  .section-title{
+    font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--ink);
+    margin:20px 0 10px; display:flex; align-items:center; gap:8px;
+  }
+  .section-title .hint{ font-size:12px; font-weight:400; color:var(--ink-soft); font-family:var(--font-body); }
+
+  .student-header{ display:flex; align-items:center; gap:16px; margin-bottom:6px; }
+  .student-header .name{ font-family:var(--font-display); font-size:22px; font-weight:700; }
+  .student-header .total-label{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(31,42,68,0.4); z-index:40;
+    display:flex; align-items:flex-end; justify-content:center;
+    animation:fadein 160ms ease;
+  }
+  @keyframes fadein{ from{opacity:0;} to{opacity:1;} }
+  @media (min-width:640px){
+    .overlay{ align-items:center; }
+  }
+  .sheet{
+    background:var(--paper); width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+    border-radius:20px 20px 0 0; padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(0,0,0,0.25);
+  }
+  @media (min-width:640px){
+    .sheet{ border-radius:20px; margin-bottom:40px; }
+  }
+  .sheet h2{ font-family:var(--font-display); font-size:19px; margin:0 0 14px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:5px; font-weight:600; }
+  .field input[type=text], .field input[type=number], .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:15px;
+    background:var(--white); color:var(--ink);
+  }
+  .field textarea{ resize:vertical; min-height:56px; }
+  .avatar-pick{
+    display:flex; align-items:center; gap:14px; margin-bottom:16px;
+  }
+  .avatar-pick .stamp{ cursor:pointer; }
+  .avatar-pick .pick-btn{ font-size:13px; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .chip{
+    border:1px solid var(--line); background:var(--white); border-radius:20px; padding:7px 14px;
+    font-size:14px; font-weight:600; font-family:var(--font-mono);
+  }
+  .chip.pos{ color:var(--green-deep); }
+  .chip.pos:active{ background:var(--gold-soft); border-color:var(--gold); }
+  .chip.neg{ color:var(--coral); }
+  .chip.neg:active{ background:var(--coral-soft); border-color:var(--coral); }
+  .chip.active{ outline:2px solid var(--gold); }
+  .sheet-actions{ display:flex; gap:10px; margin-top:18px; }
+  .sheet-actions .btn{ flex:1; }
+  .close-x{
+    position:absolute; top:14px; right:14px; background:var(--paper-2); border:1px solid var(--line);
+    width:30px; height:30px; border-radius:9px; font-size:15px; color:var(--ink-soft);
+  }
+  .sheet{ position:relative; }
+
+  .settings-list button{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:var(--white); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; font-size:14px; color:var(--ink); margin-bottom:10px;
+  }
+  .settings-list button .desc{ display:block; font-size:12px; color:var(--ink-soft); font-weight:400; margin-top:2px; }
+  .settings-list button:active{ background:var(--paper-2); }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:24px;
+    font-size:13px; z-index:60; box-shadow:var(--shadow); max-width:88vw; text-align:center;
+  }
+  .warn-box{
+    background:var(--coral-soft); border:1px solid var(--coral); color:var(--coral);
+    border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:14px;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+
+/* ================= IndexedDB layer ================= */
+const DB_NAME = 'student_points_db';
+const DB_VERSION = 1;
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('grades')) db.createObjectStore('grades',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('students')) db.createObjectStore('students',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('records')) db.createObjectStore('records',{keyPath:'id'});
+    };
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+}
+let dbP = openDB();
+async function store(name, mode){
+  const db = await dbP;
+  return db.transaction(name, mode||'readonly').objectStore(name);
+}
+function reqP(req){
+  return new Promise((res,rej)=>{ req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error); });
+}
+async function dbGetAll(name){ return reqP((await store(name)).getAll()); }
+async function dbPut(name,obj){ await reqP((await store(name,'readwrite')).put(obj)); return obj; }
+async function dbDelete(name,id){ await reqP((await store(name,'readwrite')).delete(id)); }
+async function dbClear(name){ await reqP((await store(name,'readwrite')).clear()); }
+
+/* ================= In-memory state ================= */
+const STATE = { grades:[], students:[], records:[] };
+let ready = false;
+
+async function loadAll(){
+  const [grades, students, records] = await Promise.all([dbGetAll('grades'), dbGetAll('students'), dbGetAll('records')]);
+  STATE.grades = grades; STATE.students = students; STATE.records = records;
+  ready = true;
+}
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,9); }
+function nowTs(){ return Date.now(); }
+function fmtDate(ts){
+  const d = new Date(ts);
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function totalFor(studentId){
+  let t = 0;
+  for(const r of STATE.records) if(r.studentId===studentId) t += r.delta;
+  return t;
+}
+function recordsFor(studentId){
+  return STATE.records.filter(r=>r.studentId===studentId).sort((a,b)=>b.timestamp-a.timestamp);
+}
+function studentsIn(gradeId){
+  return STATE.students.filter(s=>s.gradeId===gradeId).sort((a,b)=>a.createdAt-b.createdAt);
+}
+function activeGrades(){ return STATE.grades.filter(g=>!g.archived).sort((a,b)=>a.order-b.order); }
+function archivedGrades(){ return STATE.grades.filter(g=>g.archived).sort((a,b)=>b.archivedAt-a.archivedAt); }
+function gradeById(id){ return STATE.grades.find(g=>g.id===id); }
+function studentById(id){ return STATE.students.find(s=>s.id===id); }
+
+/* ================= Mutations ================= */
+async function createGrade(name){
+  const maxOrder = STATE.grades.reduce((m,g)=>Math.max(m,g.order||0),0);
+  const g = {id:uid(), name, archived:false, archivedAt:null, order:maxOrder+1, createdAt:nowTs()};
+  await dbPut('grades', g); STATE.grades.push(g); return g;
+}
+async function renameGrade(id, name){
+  const g = gradeById(id); if(!g) return; g.name = name; await dbPut('grades', g);
+}
+async function archiveGrade(id, archived){
+  const g = gradeById(id); if(!g) return; g.archived = archived; g.archivedAt = archived ? nowTs() : null; await dbPut('grades', g);
+}
+async function deleteGrade(id){
+  const sids = studentsIn(id).map(s=>s.id);
+  for(const sid of sids){
+    for(const r of STATE.records.filter(r=>r.studentId===sid)) await dbDelete('records', r.id);
+  }
+  STATE.records = STATE.records.filter(r=>!sids.includes(r.studentId));
+  for(const sid of sids) await dbDelete('students', sid);
+  STATE.students = STATE.students.filter(s=>s.gradeId!==id);
+  await dbDelete('grades', id);
+  STATE.grades = STATE.grades.filter(g=>g.id!==id);
+}
+async function createStudent(gradeId, name, avatar){
+  const s = {id:uid(), gradeId, name, avatar:avatar||null, createdAt:nowTs()};
+  await dbPut('students', s); STATE.students.push(s); return s;
+}
+async function updateStudent(id, patch){
+  const s = studentById(id); if(!s) return; Object.assign(s, patch); await dbPut('students', s);
+}
+async function deleteStudent(id){
+  for(const r of STATE.records.filter(r=>r.studentId===id)) await dbDelete('records', r.id);
+  STATE.records = STATE.records.filter(r=>r.studentId!==id);
+  await dbDelete('students', id);
+  STATE.students = STATE.students.filter(s=>s.id!==id);
+}
+async function addRecord(studentId, delta, reason){
+  const r = {id:uid(), studentId, delta, reason: reason||'手动调整', timestamp: nowTs()};
+  await dbPut('records', r); STATE.records.push(r); return r;
+}
+async function deleteRecord(id){
+  await dbDelete('records', id);
+  STATE.records = STATE.records.filter(r=>r.id!==id);
+}
+
+/* ================= Image compression ================= */
+function pickAndCompressImage(){
+  return new Promise((resolve)=>{
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = ()=>{
+      const file = input.files && input.files[0];
+      if(!file){ resolve(null); return; }
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const max = 256;
+          let w = img.width, h = img.height;
+          if(w>h){ if(w>max){ h = Math.round(h*max/w); w = max; } }
+          else{ if(h>max){ w = Math.round(w*max/h); h = max; } }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = ()=>resolve(null);
+        img.src = e.target.result;
+      };
+      reader.onerror = ()=>resolve(null);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  });
+}
+
+/* ================= Routing / render ================= */
+let route = { name:'grades' };
+let selection = new Set();
+let selectMode = false;
+
+const app = document.getElementById('app');
+
+function go(r){ route = r; selection = new Set(); selectMode = false; render(); window.scrollTo(0,0); }
+
+function stampHtml(entity, big){
+  const total = entity._total;
+  const cls = total>0?'pos':(total<0?'neg':'');
+  const initial = esc((entity.name||'?').trim().slice(0,1));
+  const inner = entity.avatar
+    ? `<img src="${entity.avatar}" alt="">`
+    : `<span class="initial">${initial}</span>`;
+  return `<div class="stamp ${big?'big':''} ${cls}">${inner}<span class="score-seal ${cls}">${total>0?'+':''}${total}</span></div>`;
+}
+
+function render(){
+  if(!ready){ app.innerHTML = `<div style="padding:60px;text-align:center;color:var(--ink-soft)">加载中…</div>`; return; }
+  if(route.name==='grades') return renderGrades();
+  if(route.name==='archived') return renderArchived();
+  if(route.name==='gradeDetail') return renderGradeDetail(route.gradeId);
+  if(route.name==='studentDetail') return renderStudentDetail(route.studentId);
+}
+
+/* ---------- Grades home ---------- */
+function renderGrades(){
+  const grades = activeGrades();
+  const archCount = archivedGrades().length;
+  let cards = grades.map(g=>{
+    const cnt = studentsIn(g.id).length;
+    return `
+    <div class="grade-card" data-grade="${g.id}">
+      <div class="tab">
+        <span class="name">${esc(g.name)}</span>
+        <button class="kebab" data-action="grade-menu" data-id="${g.id}">⋮</button>
+      </div>
+      <div class="body">
+        <div class="count">${cnt} 名学生</div>
+        <button class="open-btn" data-action="open-grade" data-id="${g.id}">进入 →</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <h1>学生积分册<span class="sub">选择年级开始记分</span></h1>
+      <button class="icon-btn" data-action="settings">⚙️ 设置</button>
+    </div>
+    <main>
+      <div class="fab-row">
+        <button class="btn btn-primary" data-action="new-grade">＋ 新建年级</button>
+        ${archCount ? `<button class="btn btn-ghost" data-action="show-archived">历史年级 (${archCount})</button>` : ''}
+      </div>
+      ${grades.length ? `<div class="grid">${cards}</div>` : `
+        <div class="empty-state">
+          <div class="glyph">🗂️</div>
+          <h3>还没有年级</h3>
+          <p>先新建一个年级，再往里面添加学生吧</p>
+          <button class="btn btn-primary" data-action="new-grade">＋ 新建年级</button>
+        </div>`}
+    </main>
+  `;
+}
+
+/* ---------- Archived grades ---------- */
+function renderArchived(){
+  const grades = archivedGrades();
+  let cards = grades.map(g=>{
+    const cnt = studentsIn(g.id).length;
+    return `
+    <div class="grade-card" data-grade="${g.id}">
+      <div class="tab" style="background:var(--ink-soft)">
+        <span class="name">${esc(g.name)}</span>
+        <button class="kebab" data-action="archived-menu" data-id="${g.id}">⋮</button>
+      </div>
+      <div class="body">
+        <div class="count">${cnt} 名学生 · 已归档</div>
+        <button class="open-btn" data-action="open-grade" data-id="${g.id}">查看 →</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back-btn" data-action="back-home">‹</button>
+      <h1>历史年级</h1>
+    </div>
+    <main>
+      ${grades.length ? `<div class="grid">${cards}</div>` : `
+        <div class="empty-state">
+          <div class="glyph">📦</div>
+          <h3>暂无历史年级</h3>
+          <p>把不再使用的年级移到这里，可以随时恢复</p>
+        </div>`}
+    </main>
+  `;
+}
+
+/* ---------- Grade detail ---------- */
+function renderGradeDetail(gradeId){
+  const g = gradeById(gradeId);
+  if(!g){ go({name:'grades'}); return; }
+  const students = studentsIn(gradeId).map(s=>({...s, _total: totalFor(s.id)}));
+
+  const cards = students.map(s=>{
+    const sel = selection.has(s.id);
+    return `
+    <div class="student-card ${selectMode?'selectable':''} ${sel?'selected':''}" data-action="${selectMode?'toggle-select':'noop'}" data-id="${s.id}">
+      ${selectMode ? `<div class="check">${sel?'✓':''}</div>` : `<button class="quick-btn" data-action="quick-adjust" data-id="${s.id}">±</button>`}
+      ${stampHtml(s)}
+      <button class="name-btn" data-action="${selectMode?'toggle-select':'open-student'}" data-id="${s.id}">${esc(s.name)}</button>
+    </div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back-btn" data-action="back-home">‹</button>
+      <h1>${esc(g.name)}<span class="sub">${students.length} 名学生${g.archived?' · 已归档':''}</span></h1>
+      <button class="kebab" data-action="grade-menu" data-id="${g.id}" style="background:rgba(255,255,255,0.15)">⋮</button>
+    </div>
+    <main>
+      <div class="fab-row">
+        <button class="btn btn-primary" data-action="add-student" data-id="${g.id}">＋ 添加学生</button>
+        <button class="btn ${selectMode?'btn-gold':'btn-ghost'}" data-action="toggle-batch">${selectMode?'✓ 批量模式中':'☑ 批量加减分'}</button>
+      </div>
+      ${students.length ? `<div class="student-grid">${cards}</div>` : `
+        <div class="empty-state">
+          <div class="glyph">🧑‍🎓</div>
+          <h3>这个年级还没有学生</h3>
+          <p>添加学生后就可以开始记录积分了</p>
+          <button class="btn btn-primary" data-action="add-student" data-id="${g.id}">＋ 添加学生</button>
+        </div>`}
+    </main>
+    ${selectMode ? `
+    <div class="batch-bar">
+      <div class="count">已选 <b>${selection.size}</b> 人</div>
+      <button class="btn btn-ghost btn-sm" data-action="select-all" data-id="${g.id}">全选</button>
+      <button class="btn btn-gold btn-sm" data-action="batch-adjust" ${selection.size?'':'disabled'}>批量加减分</button>
+    </div>` : ''}
+  `;
+}
+
+/* ---------- Student detail ---------- */
+function renderStudentDetail(studentId){
+  const s = studentById(studentId);
+  if(!s){ go({name:'grades'}); return; }
+  const g = gradeById(s.gradeId);
+  const total = totalFor(s.id);
+  const recs = recordsFor(s.id);
+  const rows = recs.map(r=>{
+    const pos = r.delta>0;
+    return `
+    <div class="ledger-row">
+      <div class="when">${fmtDate(r.timestamp)}</div>
+      <div class="reason">${esc(r.reason)}</div>
+      <div class="delta ${pos?'pos':'neg'}">${pos?'+':''}${r.delta}</div>
+      <button class="del-btn" data-action="del-record" data-id="${r.id}" title="删除该记录">✕</button>
+    </div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="back-btn" data-action="open-grade" data-id="${s.gradeId}">‹</button>
+      <h1>${esc(s.name)}<span class="sub">${g?esc(g.name):''}</span></h1>
+      <button class="kebab" data-action="student-menu" data-id="${s.id}" style="background:rgba(255,255,255,0.15)">⋮</button>
+    </div>
+    <main>
+      <div class="student-header">
+        ${stampHtml({...s, _total: total}, true)}
+        <div>
+          <div class="name">${esc(s.name)}</div>
+          <div class="total-label">当前总积分 · 累计 ${recs.length} 条记录</div>
+        </div>
+      </div>
+      <div class="fab-row" style="margin-top:16px;">
+        <button class="btn btn-primary" data-action="quick-adjust" data-id="${s.id}">± 增减积分</button>
+      </div>
+      <div class="section-title">积分记录 <span class="hint">最新在前</span></div>
+      ${recs.length ? `<div class="ledger">${rows}</div>` : `
+        <div class="empty-state">
+          <div class="glyph">📝</div>
+          <h3>还没有积分记录</h3>
+          <p>点击上方"增减积分"添加第一条记录</p>
+        </div>`}
+    </main>
+  `;
+}
+
+/* ================= Modal system ================= */
+function closeModal(){
+  const ov = document.getElementById('modal-overlay');
+  if(ov) ov.remove();
+}
+function openModal(html){
+  closeModal();
+  const ov = document.createElement('div');
+  ov.className = 'overlay'; ov.id = 'modal-overlay';
+  ov.innerHTML = `<div class="sheet">${html}</div>`;
+  ov.addEventListener('click', (e)=>{ if(e.target===ov) closeModal(); });
+  document.body.appendChild(ov);
+  return ov;
+}
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 1800);
+}
+
+/* ---- New / rename grade ---- */
+function modalGradeForm(existing){
+  const ov = openModal(`
+    <button class="close-x" data-action="close-modal">✕</button>
+    <h2>${existing? '重命名年级' : '新建年级'}</h2>
+    <div class="field">
+      <label>年级名称</label>
+      <input type="text" id="grade-name-input" placeholder="例如：三年级 1 班" value="${existing?esc(existing.name):''}" maxlength="30">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-action="close-modal">取消</button>
+      <button class="btn btn-primary" data-action="save-grade" data-id="${existing?existing.id:''}">保存</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('grade-name-input'); el && el.focus(); }, 50);
+}
+
+/* ---- Add / edit student ---- */
+let pendingAvatar = null;
+function modalStudentForm(gradeId, existing){
+  pendingAvatar = existing ? existing.avatar : null;
+  const ov = openModal(`
+    <button class="close-x" data-action="close-modal">✕</button>
+    <h2>${existing? '编辑学生' : '添加学生'}</h2>
+    <div class="avatar-pick">
+      <div id="avatar-preview">${stampHtml({name: existing?existing.name:'?', avatar: pendingAvatar, _total:0})}</div>
+      <button class="btn btn-ghost pick-btn" data-action="pick-avatar">上传头像</button>
+    </div>
+    <div class="field">
+      <label>学生姓名</label>
+      <input type="text" id="student-name-input" placeholder="姓名" value="${existing?esc(existing.name):''}" maxlength="20">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-action="close-modal">取消</button>
+      <button class="btn btn-primary" data-action="save-student" data-grade="${gradeId}" data-id="${existing?existing.id:''}">保存</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('student-name-input'); el && el.focus(); }, 50);
+}
+
+/* ---- Adjust points (single or batch) ---- */
+let adjustAmount = 0;
+function modalAdjust({mode, studentId, gradeId}){
+  adjustAmount = 0;
+  let title, subtitle;
+  if(mode==='single'){
+    const s = studentById(studentId);
+    title = '增减积分';
+    subtitle = `对象：${esc(s.name)}`;
+  } else {
+    title = '批量增减积分';
+    subtitle = `已选 ${selection.size} 名学生`;
+  }
+  openModal(`
+    <button class="close-x" data-action="close-modal">✕</button>
+    <h2>${title}</h2>
+    <div class="field" style="margin-top:-8px;color:var(--ink-soft);font-size:13px;">${subtitle}</div>
+    <div class="field">
+      <label>快捷加分</label>
+      <div class="chip-row">
+        ${[1,5,10,20,50].map(v=>`<button class="chip pos" data-action="chip" data-v="${v}">+${v}</button>`).join('')}
+      </div>
+      <label style="margin-top:8px;">快捷减分</label>
+      <div class="chip-row">
+        ${[1,5,10,20,50].map(v=>`<button class="chip neg" data-action="chip" data-v="-${v}">-${v}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>自定义分值（正数加分，负数减分）</label>
+      <input type="number" id="amount-input" placeholder="例如 -50 或 10" value="">
+    </div>
+    <div class="field">
+      <label>原因备注（会写入积分记录，可选）</label>
+      <input type="text" id="reason-input" placeholder="例如：全班奶茶统一扣分 / 课堂表现优秀" maxlength="60">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-action="close-modal">取消</button>
+      <button class="btn btn-primary" data-action="confirm-adjust" data-mode="${mode}" data-student="${studentId||''}" data-grade="${gradeId||''}">确认</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('amount-input'); el && el.focus(); }, 50);
+}
+
+/* ---- Settings / backup ---- */
+function modalSettings(){
+  openModal(`
+    <button class="close-x" data-action="close-modal">✕</button>
+    <h2>设置与备份</h2>
+    <div class="settings-list">
+      <button data-action="export-data">⬇️ 导出备份文件<span class="desc">把所有年级、学生和积分记录导出为一个 JSON 文件</span></button>
+      <button data-action="import-data" data-mode="replace">♻️ 覆盖导入<span class="desc">选择备份文件，用文件内容替换当前全部数据</span></button>
+      <button data-action="import-data" data-mode="merge">➕ 合并导入<span class="desc">选择备份文件，作为新增年级追加到当前数据</span></button>
+    </div>
+    <div class="warn-box">数据只保存在本设备浏览器中。清除浏览器数据、更换设备前，请先导出备份文件。</div>
+  `);
+}
+
+/* ================= Event delegation ================= */
+document.addEventListener('click', async (e)=>{
+  const t = e.target.closest('[data-action]');
+  if(!t){
+    document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+    return;
+  }
+  const action = t.dataset.action;
+
+  switch(action){
+    case 'noop': break;
+
+    case 'back-home': go({name:'grades'}); break;
+    case 'show-archived': go({name:'archived'}); break;
+    case 'open-grade': go({name:'gradeDetail', gradeId:t.dataset.id}); break;
+    case 'open-student': go({name:'studentDetail', studentId:t.dataset.id}); break;
+
+    case 'settings': modalSettings(); break;
+    case 'close-modal': closeModal(); break;
+
+    case 'new-grade': modalGradeForm(null); break;
+    case 'save-grade': {
+      const input = document.getElementById('grade-name-input');
+      const name = input.value.trim();
+      if(!name){ input.focus(); return; }
+      if(t.dataset.id){ await renameGrade(t.dataset.id, name); }
+      else { const g = await createGrade(name); closeModal(); render(); return; }
+      closeModal(); render();
+      break;
+    }
+
+    case 'grade-menu':
+    case 'archived-menu': {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      const g = gradeById(t.dataset.id);
+      const isArchived = g.archived;
+      const menu = document.createElement('div');
+      menu.className = 'menu-pop';
+      const rect = t.getBoundingClientRect();
+      menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      menu.style.left = Math.max(8, rect.right - 170 + window.scrollX) + 'px';
+      menu.innerHTML = `
+        <button data-action="rename-grade" data-id="${g.id}">重命名</button>
+        ${isArchived
+          ? `<button data-action="unarchive-grade" data-id="${g.id}">恢复到年级列表</button>`
+          : `<button data-action="archive-grade" data-id="${g.id}">移到历史年级</button>`}
+        <button class="danger" data-action="delete-grade" data-id="${g.id}">彻底删除年级</button>
+      `;
+      document.body.appendChild(menu);
+      break;
+    }
+    case 'rename-grade': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      modalGradeForm(gradeById(t.dataset.id));
+      break;
+    }
+    case 'archive-grade': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      await archiveGrade(t.dataset.id, true);
+      toast('已移到历史年级');
+      render();
+      break;
+    }
+    case 'unarchive-grade': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      await archiveGrade(t.dataset.id, false);
+      toast('已恢复到年级列表');
+      render();
+      break;
+    }
+    case 'delete-grade': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      const g = gradeById(t.dataset.id);
+      const cnt = studentsIn(g.id).length;
+      if(confirm(`确定要彻底删除「${g.name}」吗？\n将同时删除其下 ${cnt} 名学生及全部积分记录，此操作无法撤销。`)){
+        await deleteGrade(t.dataset.id);
+        toast('年级已删除');
+        go({name:'grades'});
+      }
+      break;
+    }
+
+    case 'add-student': modalStudentForm(t.dataset.id, null); break;
+    case 'pick-avatar': {
+      const dataUrl = await pickAndCompressImage();
+      if(dataUrl){
+        pendingAvatar = dataUrl;
+        const prev = document.getElementById('avatar-preview');
+        const nameInput = document.getElementById('student-name-input');
+        prev.innerHTML = stampHtml({name: (nameInput?nameInput.value:'') || '?', avatar: dataUrl, _total:0});
+      }
+      break;
+    }
+    case 'save-student': {
+      const input = document.getElementById('student-name-input');
+      const name = input.value.trim();
+      if(!name){ input.focus(); return; }
+      if(t.dataset.id){
+        await updateStudent(t.dataset.id, {name, avatar: pendingAvatar});
+      } else {
+        await createStudent(t.dataset.grade, name, pendingAvatar);
+      }
+      closeModal(); render();
+      break;
+    }
+
+    case 'student-menu': {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      const s = studentById(t.dataset.id);
+      const menu = document.createElement('div');
+      menu.className = 'menu-pop';
+      const rect = t.getBoundingClientRect();
+      menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      menu.style.right = '16px';
+      menu.style.left = Math.max(8, rect.right - 170 + window.scrollX) + 'px';
+      menu.innerHTML = `
+        <button data-action="edit-student" data-id="${s.id}">编辑姓名/头像</button>
+        <button class="danger" data-action="delete-student" data-id="${s.id}">删除该学生</button>
+      `;
+      document.body.appendChild(menu);
+      break;
+    }
+    case 'edit-student': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      const s = studentById(t.dataset.id);
+      modalStudentForm(s.gradeId, s);
+      break;
+    }
+    case 'delete-student': {
+      document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+      const s = studentById(t.dataset.id);
+      if(confirm(`确定要删除学生「${s.name}」吗？\n将同时删除其全部积分记录，此操作无法撤销。`)){
+        const gid = s.gradeId;
+        await deleteStudent(t.dataset.id);
+        toast('学生已删除');
+        go({name:'gradeDetail', gradeId: gid});
+      }
+      break;
+    }
+
+    case 'toggle-batch': {
+      selectMode = !selectMode; selection = new Set(); render();
+      break;
+    }
+    case 'toggle-select': {
+      const id = t.dataset.id;
+      if(selection.has(id)) selection.delete(id); else selection.add(id);
+      render();
+      break;
+    }
+    case 'select-all': {
+      const gid = t.dataset.id;
+      const all = studentsIn(gid).map(s=>s.id);
+      selection = new Set(all); render();
+      break;
+    }
+
+    case 'quick-adjust': modalAdjust({mode:'single', studentId: t.dataset.id}); break;
+    case 'batch-adjust': modalAdjust({mode:'batch', gradeId: route.gradeId}); break;
+    case 'chip': {
+      const v = parseInt(t.dataset.v, 10);
+      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('amount-input').value = v;
+      break;
+    }
+    case 'confirm-adjust': {
+      const amountInput = document.getElementById('amount-input');
+      const reasonInput = document.getElementById('reason-input');
+      const amount = parseInt(amountInput.value, 10);
+      if(!amount || isNaN(amount)){ amountInput.focus(); return; }
+      const reason = reasonInput.value.trim();
+      if(t.dataset.mode==='single'){
+        await addRecord(t.dataset.student, amount, reason);
+      } else {
+        for(const sid of selection) await addRecord(sid, amount, reason);
+      }
+      closeModal();
+      toast(`已${amount>0?'加':'减'} ${Math.abs(amount)} 分`);
+      if(route.name==='studentDetail') render();
+      else { selectMode=false; selection=new Set(); render(); }
+      break;
+    }
+    case 'del-record': {
+      if(confirm('删除这条积分记录吗？总积分会相应变化。')){
+        await deleteRecord(t.dataset.id);
+        render();
+      }
+      break;
+    }
+
+    case 'export-data': {
+      const data = { version:1, exportedAt: nowTs(), grades: STATE.grades, students: STATE.students, records: STATE.records };
+      const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+      a.href = url; a.download = `积分册备份_${stamp}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('备份文件已开始下载');
+      break;
+    }
+    case 'import-data': {
+      const mode = t.dataset.mode;
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'application/json';
+      input.onchange = async ()=>{
+        const file = input.files && input.files[0];
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if(!data || !Array.isArray(data.grades) || !Array.isArray(data.students) || !Array.isArray(data.records)){
+            toast('文件格式不正确'); return;
+          }
+          if(mode==='replace'){
+            if(!confirm('覆盖导入会删除当前设备上的全部现有数据，并用文件内容替换，确定继续吗？')) return;
+            await dbClear('grades'); await dbClear('students'); await dbClear('records');
+            for(const g of data.grades) await dbPut('grades', g);
+            for(const s of data.students) await dbPut('students', s);
+            for(const r of data.records) await dbPut('records', r);
+            await loadAll();
+            toast('已覆盖导入');
+          } else {
+            const idMap = {};
+            for(const g of data.grades){
+              const nid = uid(); idMap[g.id] = nid;
+              await dbPut('grades', {...g, id:nid, name: g.name});
+              STATE.grades.push({...g, id:nid});
+            }
+            const sidMap = {};
+            for(const s of data.students){
+              const nid = uid(); sidMap[s.id] = nid;
+              const ng = {...s, id:nid, gradeId: idMap[s.gradeId] || s.gradeId};
+              await dbPut('students', ng); STATE.students.push(ng);
+            }
+            for(const r of data.records){
+              const nid = uid();
+              const nr = {...r, id:nid, studentId: sidMap[r.studentId] || r.studentId};
+              await dbPut('records', nr); STATE.records.push(nr);
+            }
+            toast('已合并导入为新年级');
+          }
+          closeModal(); go({name:'grades'});
+        }catch(err){
+          toast('导入失败：文件无法解析');
+        }
+      };
+      input.click();
+      break;
+    }
+  }
+});
+
+/* close popovers on outside tap for menu positioning inside grade cards */
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.menu-pop') && !e.target.closest('[data-action="grade-menu"]') && !e.target.closest('[data-action="archived-menu"]') && !e.target.closest('[data-action="student-menu"]')){
+    document.querySelectorAll('.menu-pop').forEach(m=>m.remove());
+  }
+});
+
+/* ================= Boot ================= */
+(async function boot(){
+  await loadAll();
+  render();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+})();
+
+})();
+</script>
+</body>
+</html>
