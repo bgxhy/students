@@ -291,10 +291,24 @@
   }
   .field textarea{ resize:vertical; min-height:56px; }
   .avatar-pick{
-    display:flex; align-items:center; gap:14px; margin-bottom:16px;
+    display:flex; align-items:center; gap:14px; margin-bottom:6px; flex-wrap:wrap;
   }
   .avatar-pick .stamp{ cursor:pointer; }
   .avatar-pick .pick-btn{ font-size:13px; }
+  .avatar-pick .btn-col{ display:flex; flex-direction:column; gap:8px; }
+  .emoji-fill{ width:100%; height:100%; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .emoji-char{ font-size:28px; line-height:1; }
+  .stamp.big .emoji-char{ font-size:44px; }
+  .preset-label{ font-size:13px; color:var(--ink-soft); margin:14px 0 8px; font-weight:600; }
+  .preset-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(46px,1fr)); gap:8px; margin-bottom:16px;
+  }
+  .preset-item{
+    width:46px; height:46px; border-radius:50%; border:2px solid transparent;
+    display:flex; align-items:center; justify-content:center; font-size:22px; padding:0;
+  }
+  .preset-item.active{ border-color:var(--gold); }
+  .preset-item:active{ filter:brightness(0.95); }
   .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
   .chip{
     border:1px solid var(--line); background:var(--white); border-radius:20px; padding:7px 14px;
@@ -490,13 +504,30 @@ const app = document.getElementById('app');
 
 function go(r){ route = r; selection = new Set(); selectMode = false; render(); window.scrollTo(0,0); }
 
+const PRESET_AVATARS = [
+  ['🐱','#EFDDB0'], ['🐶','#F0D8CE'], ['🐰','#D7E4D3'], ['🐼','#D9E3EE'],
+  ['🦊','#E7DCEF'], ['🐯','#F4E1D2'], ['🐨','#DCEAE6'], ['🐸','#EDE3D0'],
+  ['🐵','#E0E7D8'], ['🦁','#F2DCE4'], ['🐮','#D8DEE9'], ['🐷','#EAE3D6'],
+  ['🦄','#F0D8CE'], ['🐧','#D9E3EE'], ['🐤','#EFDDB0'], ['🦉','#E7DCEF']
+];
+function isPresetAvatar(v){ return typeof v==='string' && v.startsWith('preset:'); }
+function parsePresetAvatar(v){
+  const parts = v.split(':'); // preset:<emoji>:<bg>
+  return { emoji: parts[1], bg: parts[2] };
+}
 function stampHtml(entity, big){
   const total = entity._total;
   const cls = total>0?'pos':(total<0?'neg':'');
   const initial = esc((entity.name||'?').trim().slice(0,1));
-  const inner = entity.avatar
-    ? `<img src="${entity.avatar}" alt="">`
-    : `<span class="initial">${initial}</span>`;
+  let inner;
+  if(entity.avatar && isPresetAvatar(entity.avatar)){
+    const {emoji, bg} = parsePresetAvatar(entity.avatar);
+    inner = `<div class="emoji-fill" style="background:${bg}"><span class="emoji-char">${emoji}</span></div>`;
+  } else if(entity.avatar){
+    inner = `<img src="${entity.avatar}" alt="">`;
+  } else {
+    inner = `<span class="initial">${initial}</span>`;
+  }
   return `<div class="stamp ${big?'big':''} ${cls}">${inner}<span class="score-seal ${cls}">${total>0?'+':''}${total}</span></div>`;
 }
 
@@ -719,7 +750,16 @@ function modalStudentForm(gradeId, existing){
     <h2>${existing? '编辑学生' : '添加学生'}</h2>
     <div class="avatar-pick">
       <div id="avatar-preview">${stampHtml({name: existing?existing.name:'?', avatar: pendingAvatar, _total:0})}</div>
-      <button class="btn btn-ghost pick-btn" data-action="pick-avatar">上传头像</button>
+      <div class="btn-col">
+        <button class="btn btn-ghost pick-btn" data-action="pick-avatar">上传照片</button>
+        <button class="btn btn-ghost pick-btn" data-action="clear-avatar">清除头像</button>
+      </div>
+    </div>
+    <div class="preset-label">或选择预设头像</div>
+    <div class="preset-grid">
+      ${PRESET_AVATARS.map(([emoji,bg])=>`
+        <button type="button" class="preset-item" style="background:${bg}" data-action="pick-preset-avatar" data-emoji="${emoji}" data-bg="${bg}">${emoji}</button>
+      `).join('')}
     </div>
     <div class="field">
       <label>学生姓名</label>
@@ -881,7 +921,25 @@ document.addEventListener('click', async (e)=>{
         const prev = document.getElementById('avatar-preview');
         const nameInput = document.getElementById('student-name-input');
         prev.innerHTML = stampHtml({name: (nameInput?nameInput.value:'') || '?', avatar: dataUrl, _total:0});
+        document.querySelectorAll('.preset-item').forEach(el=>el.classList.remove('active'));
       }
+      break;
+    }
+    case 'clear-avatar': {
+      pendingAvatar = null;
+      const prev = document.getElementById('avatar-preview');
+      const nameInput = document.getElementById('student-name-input');
+      prev.innerHTML = stampHtml({name: (nameInput?nameInput.value:'') || '?', avatar: null, _total:0});
+      document.querySelectorAll('.preset-item').forEach(el=>el.classList.remove('active'));
+      break;
+    }
+    case 'pick-preset-avatar': {
+      const preset = `preset:${t.dataset.emoji}:${t.dataset.bg}`;
+      pendingAvatar = preset;
+      const prev = document.getElementById('avatar-preview');
+      const nameInput = document.getElementById('student-name-input');
+      prev.innerHTML = stampHtml({name: (nameInput?nameInput.value:'') || '?', avatar: preset, _total:0});
+      document.querySelectorAll('.preset-item').forEach(el=>el.classList.toggle('active', el===t));
       break;
     }
     case 'save-student': {
