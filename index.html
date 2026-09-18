@@ -250,6 +250,8 @@
   }
   .ledger-row .delta.pos{ color:var(--green-deep); background:var(--gold-soft); }
   .ledger-row .delta.neg{ color:var(--coral); background:var(--coral-soft); }
+  .ledger-row .delta.zero{ color:var(--ink-soft); background:var(--paper-2); }
+  .ledger-row .row-actions{ display:flex; gap:2px; flex-shrink:0; }
   .ledger-row .del-btn{
     background:none; border:none; color:var(--ink-soft); font-size:16px; padding:4px 6px; opacity:0.6;
   }
@@ -458,6 +460,11 @@ async function addRecord(studentId, delta, reason){
   const r = {id:uid(), studentId, delta, reason: reason||'手动调整', timestamp: nowTs()};
   await dbPut('records', r); STATE.records.push(r); return r;
 }
+async function updateRecord(id, patch){
+  const r = STATE.records.find(r=>r.id===id); if(!r) return;
+  Object.assign(r, patch);
+  await dbPut('records', r);
+}
 async function deleteRecord(id){
   await dbDelete('records', id);
   STATE.records = STATE.records.filter(r=>r.id!==id);
@@ -665,13 +672,16 @@ function renderStudentDetail(studentId){
   const total = totalFor(s.id);
   const recs = recordsFor(s.id);
   const rows = recs.map(r=>{
-    const pos = r.delta>0;
+    const sign = r.delta>0 ? 'pos' : (r.delta<0 ? 'neg' : 'zero');
     return `
     <div class="ledger-row">
       <div class="when">${fmtDate(r.timestamp)}</div>
       <div class="reason">${esc(r.reason)}</div>
-      <div class="delta ${pos?'pos':'neg'}">${pos?'+':''}${r.delta}</div>
-      <button class="del-btn" data-action="del-record" data-id="${r.id}" title="删除该记录">✕</button>
+      <div class="delta ${sign}">${r.delta>0?'+':''}${r.delta}</div>
+      <div class="row-actions">
+        <button class="del-btn" data-action="edit-record" data-id="${r.id}" title="修改该记录">✎</button>
+        <button class="del-btn" data-action="del-record" data-id="${r.id}" title="删除该记录">✕</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -801,8 +811,8 @@ function modalAdjust({mode, studentId, gradeId}){
       </div>
     </div>
     <div class="field">
-      <label>自定义分值（正数加分，负数减分）</label>
-      <input type="number" id="amount-input" placeholder="例如 -50 或 10" value="">
+      <label>自定义分值（正数加分，负数减分，留空默认为 0 分）</label>
+      <input type="number" id="amount-input" placeholder="留空则为 0 分" value="">
     </div>
     <div class="field">
       <label>原因备注（会写入积分记录，可选）</label>
@@ -814,6 +824,39 @@ function modalAdjust({mode, studentId, gradeId}){
     </div>
   `);
   setTimeout(()=>{ const el = document.getElementById('amount-input'); el && el.focus(); }, 50);
+}
+
+/* ---- Edit existing record ---- */
+function modalEditRecord(record){
+  const s = studentById(record.studentId);
+  openModal(`
+    <button class="close-x" data-action="close-modal">✕</button>
+    <h2>修改积分记录</h2>
+    <div class="field" style="margin-top:-8px;color:var(--ink-soft);font-size:13px;">${esc(s?s.name:'')} · ${fmtDate(record.timestamp)}</div>
+    <div class="field">
+      <label>快捷加分</label>
+      <div class="chip-row">
+        ${[1,5,10,20,50].map(v=>`<button class="chip pos" data-action="chip" data-v="${v}">+${v}</button>`).join('')}
+      </div>
+      <label style="margin-top:8px;">快捷减分</label>
+      <div class="chip-row">
+        ${[1,5,10,20,50].map(v=>`<button class="chip neg" data-action="chip" data-v="-${v}">-${v}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>分值（正数加分，负数减分，留空默认为 0 分）</label>
+      <input type="number" id="amount-input" placeholder="留空则为 0 分" value="${record.delta}">
+    </div>
+    <div class="field">
+      <label>原因备注</label>
+      <input type="text" id="reason-input" placeholder="原因" maxlength="60" value="${esc(record.reason)}">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" data-action="close-modal">取消</button>
+      <button class="btn btn-primary" data-action="confirm-edit-record" data-id="${record.id}">保存修改</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el = document.getElementById('amount-input'); el && el.focus(); el&&el.select(); }, 50);
 }
 
 /* ---- Settings / backup ---- */
@@ -1019,8 +1062,9 @@ document.addEventListener('click', async (e)=>{
     case 'confirm-adjust': {
       const amountInput = document.getElementById('amount-input');
       const reasonInput = document.getElementById('reason-input');
-      const amount = parseInt(amountInput.value, 10);
-      if(!amount || isNaN(amount)){ amountInput.focus(); return; }
+      const raw = amountInput.value.trim();
+      const amount = raw === '' ? 0 : parseInt(raw, 10);
+      if(isNaN(amount)){ amountInput.focus(); return; }
       const reason = reasonInput.value.trim();
       if(t.dataset.mode==='single'){
         await addRecord(t.dataset.student, amount, reason);
@@ -1028,9 +1072,27 @@ document.addEventListener('click', async (e)=>{
         for(const sid of selection) await addRecord(sid, amount, reason);
       }
       closeModal();
-      toast(`已${amount>0?'加':'减'} ${Math.abs(amount)} 分`);
+      toast(amount===0 ? '已添加一条记录（0 分）' : `已${amount>0?'加':'减'} ${Math.abs(amount)} 分`);
       if(route.name==='studentDetail') render();
       else { selectMode=false; selection=new Set(); render(); }
+      break;
+    }
+    case 'edit-record': {
+      const r = STATE.records.find(r=>r.id===t.dataset.id);
+      if(r) modalEditRecord(r);
+      break;
+    }
+    case 'confirm-edit-record': {
+      const amountInput = document.getElementById('amount-input');
+      const reasonInput = document.getElementById('reason-input');
+      const raw = amountInput.value.trim();
+      const amount = raw === '' ? 0 : parseInt(raw, 10);
+      if(isNaN(amount)){ amountInput.focus(); return; }
+      const reason = reasonInput.value.trim();
+      await updateRecord(t.dataset.id, {delta: amount, reason: reason || '手动调整'});
+      closeModal();
+      toast('记录已更新');
+      render();
       break;
     }
     case 'del-record': {
